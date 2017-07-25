@@ -2,84 +2,6 @@
 
 import sys
 
-"""
-
-DESCRIPTION:
-A squad of robotic rovers are to be landed by NASA on a plateau on Mars. This plateau,
-which is curiously rectangular, must be navigated by the rovers so that their on-board
-cameras can get a complete view of the surrounding terrain to send back to Earth.
-
-A rover's position and location is represented by a combination of x and y co-ordinates
-and a letter representing one of the four cardinal compass points. The plateau is
-divided up into a grid to simplify navigation. An example position might be 0, 0, N,
-which means the rover is in the bottom left corner and facing North.
-
-In order to control a rover, NASA sends a simple string of letters. The possible letters
-are 'L', 'R' and 'M'. 'L' and 'R' makes the rover spin 90 degrees left or right
-respectively, without moving from its current spot. 'M' means move forward one grid
-point, and maintain the same heading.
-
-Assume that the square directly North from (x, y) is (x, y+1).
-
-The first line of input is the upper-right coordinates of the plateau, the lower-left
-coordinates are assumed to be 0,0. The rest of the input is information pertaining to
-the rovers that have been deployed. Each rover has two lines of input. The first line
-gives the rover's position, and the second line is a series of instructions telling the
-rover how to explore the plateau.
-
-The position is made up of two integers and a letter separated by spaces, corresponding
-to the x and y coordinates and the rover's orientation.
-
-Each rover will be finished sequentially, which means that the second rover won't start
-to move until the first one has finished moving.
-
-The output for each rover should be its final coordinates and heading.
-
-Input:
-5 5  # plateau
-1 2 N  # position of rover 1
-LMLMLMLMM  # movements of rover 1
-3 3 E  # position of rover 2
-MMRMMRMRRM  # movements of rover 2
-
-Output:
-1 3 N  # orientation of rover 1
-5 1 E  # orientation of rover 2
-
-TO DO:
-0. If this gets finished as a python app, consider doing it in Java
-1. Define classes and methods
-    -class Plateau
-        attrs: width, length, rover_positions, etc
-        methods: any? update_rover_positions?
-    -class Rover
-        attrs: x_position, y_position, facing, moves, self_preserve?
-        methods: move, turn, stop?
-    -class Visualizer
-        attrs: plateau, rovers_present
-        methods: draw_current_state
-    -class CollisionError
-    -class OutOfBoundsError
-    -corner cases:
-        running into another rover
-        running off the edge
-            (allow param "is this rover smart enough not to destroy itself")
-
-2. Set up arg parsing from file in main()
-    - get plateau dimensions
-    - how many rovers are there?
-    - are they self_preserve (won't run off the edge or into each other)
-    - enter position of rover X (repeat as needed)
-    - enter movements for rover X (repeat as needed)
-    - {{if plateau dimensions are small enough}}: would you like to see a visualization of the rover movements?
-2.5 - Watch Raymond Hettinger video about classes properties and static methods
-3. Write unit tests to catch all possible cases
-4. Setup proper import/folder structure
-5. Make a README.md file with instructions for both unit tests and manual tests
-
-
-"""
-
 
 class CollisionError(Exception):
     "Raise this when a non-self_preserve rover collides with another"
@@ -89,16 +11,6 @@ class CollisionError(Exception):
 class OutOfBoundsError(Exception):
     "Raise this when a non-self_preserve rover runs off the edge"
     pass
-
-
-class Plateau(object):
-    """
-    An X, Y grid to keep track of its present rovers
-    """
-    def __init__(self, width, height, rovers):
-        self.width = width
-        self.height = height
-        self.rovers = rovers  # Maybe this whole class is pointless if we aren't visualizing?!
 
 
 class Rover(object):
@@ -111,34 +23,36 @@ class Rover(object):
         self.facing = facing
         self.moves = moves
         self.self_preserve = self_preserve
-        self.get_plateau_cliffs = 0  # how the tell will I get this?!?!?
-        # Rotation / movement lookup tools:
+        # Rotation / movement lookup tools
         self.clockwise = {'N': 'E', 'E': 'S', 'S': 'W', 'W': 'N'}
         self.counter_clockwise = {'N': 'W', 'W': 'S', 'S': 'E', 'E': 'N'}
         self.movement_map = {'N': [0, 1], 'E': [1, 0], 'W': [-1, 0], 'S': [0, -1]}
 
     def __str__(self):
-        return ' '.join([str(self.x), str(self.y), self.facing])
-
-    # useless???
-    def __repr__(self):
+        """
+        Match the expected output of the specification, e.g. "1 1 N"
+        """
         return ' '.join([str(self.x), str(self.y), self.facing])
 
     def rotate(self, direction):
         """
-        Take a Left / Right incoming direction and based on direction,
-        Assign facing attribute based on lookup of corresponding hashtable
+        Take an incoming Left / Right direction and based on that direction,
+            assign `facing` attribute based on lookup of corresponding clockwise
+            or counter_clockwise hashtable. In this hashtable, the key is
+            the current direction and the value returned is the resulting direction.
         """
         if direction == 'L':
             self.facing = self.counter_clockwise[self.facing]
         if direction == 'R':
             self.facing = self.clockwise[self.facing]
+        # return for use with unit tests
+        return self.facing
 
     def advance(self, no_go_zones, width, height):
         """
         Based on current position and facing, move forward one point on the plateau.
-
-        Depending on self_preserve status, we may raise exceptions here when
+        The `movement_map` defines which directions result in which X, Y change.
+        Depending on self_preserve status, we may raise and exception when
           running off the edge or colliding with another rover.
         """
         x_change, y_change = self.movement_map[self.facing]
@@ -157,31 +71,31 @@ class Rover(object):
                 print "A rover almost rolled off the plateau! Skipping this move..."
                 return None
             else:
-                raise OutOfBoundsError("A rover off the edge of the plateau! MISSION FAILED")
-        # Advance forward if the tests are safe
+                raise OutOfBoundsError("A rover drove off the edge of the plateau! MISSION FAILED")
+        # Advance forward if both tests passed
         else:
             self.x, self.y = test_position
+        # return for use with unit tests
+        return self.x, self.y
 
 
-# Consider making THIS the plateau class and removing the old one
-class Environment(object):
+class PlateauEnvironment(object):
     """
     This class acts as a factory to create the plateau and rovers,
-    Provides an optional visualization client,
-    And handles returning the result of the rover motions back to the caller
-
+        and handles returning the result of the rover motions back to the caller
     Before initializing the Plateau and Rovers, confirm that args match the spec
     """
-    def __init__(self, visualization=False):
-        self.visualization = visualization
+    def __init__(self):
+        # Empty init until args are validated
         self.rovers = []
-        self.plateau = None
+        self.width = None
+        self.height = None
 
     def get_rover_params(self, rover_args, self_preserve):
         """
         Parse and validate command line input for rover paramters
         """
-        # First, make sure we have a moves line for every x,y,facing line
+        # First, make sure we have a cooresponding moves line for every x,y,facing line
         try:
             assert rover_args and len(rover_args) % 2 == 0
         except AssertionError:
@@ -246,19 +160,12 @@ class Environment(object):
 
     def create_plateau(self, width, height, rovers):
         """
-        Build and return a new Plateau
-        Set self.plateau
+        Here we assign the attributes for this plateau, having validated them
+          as well as the rover parameters.
         """
-        self.plateau = Plateau(width, height, rovers)
+        self.width, self.height, self.rovers = width, height, rovers
         # return for use with unit tests
-        return self.plateau
-
-    def visualize(self):
-        """
-        Dispatch off to Visualizer using the Environment
-        """
-        v = Visualizer(self)
-        # v.run_sequence()
+        return self
 
     def run_rover_moves(self, rover, width, height):
         """
@@ -267,9 +174,6 @@ class Environment(object):
         Raise errors if rover.self_preserve is not set
         Skip "Illegal" moves if rover.self_preserve is set
         """
-        print "==========================="
-        print "running moves for rover..."
-        print "==========================="
 
         # Because this method is called once for each rover, `no_go_zones`
         #  reflects an accurate snapshot of current rover positions
@@ -282,10 +186,7 @@ class Environment(object):
                 rover.advance(no_go_zones, width, height)
             else:
                 # step is either L or R here
-                print "Step is : %s" % step
-                print "rover.facing is currently: %s" % rover.facing
                 rover.rotate(step)
-                print "rover.facing is now: %s" % rover.facing
 
         return rover.__str__()
 
@@ -298,14 +199,6 @@ class Environment(object):
         return final_state
 
 
-class Visualizer(object):
-    """
-    Create a visual representation of moves for each rover on a plateau
-    """
-    def __init__(self, environment):
-        self.environment = environment
-
-
 # ##############################################################################
 # SETUP FUNCTIONS / COMMAND LINE CLIENT
 # ##############################################################################
@@ -316,11 +209,15 @@ def main():
     Main function for running direct tests from command line.
     Ctrl + C exits
     """
-    sys.tracebacklimit = 99
+    # Don't expose code in tracebacks, just show the last line of the Exception
+    sys.tracebacklimit = 0
+
+    # Dispatch to setup prompts and break out with Control-C without error
     try:
-        return input_stream()
+        return set_up_environment()
     except KeyboardInterrupt:
-        sys.exit()
+        print
+        sys.exit("Exiting...")
 
 
 def get_bool_answer(question):
@@ -337,7 +234,7 @@ def get_bool_answer(question):
     return bool_map[var.upper()]
 
 
-def input_stream():
+def set_up_environment():
     """
     Quickly dump in all args to create the environment
     """
@@ -366,22 +263,22 @@ def input_stream():
             break
 
     # start up the factory/environment
-    env = Environment()
+    plateau = PlateauEnvironment()
 
     # Get plateau dimensions from the first line
-    width, height = env.get_plateau_dims(lines[0])
+    width, height = plateau.get_plateau_dims(lines[0])
 
     # Get args for rovers from the remaining lines
-    rover_params = env.get_rover_params(lines[1:], self_preserve)
+    rover_params = plateau.get_rover_params(lines[1:], self_preserve)
 
     # After validation steps, create the rovers and plateau
     for rover in rover_params:
-        env.create_rover(*rover)
-    env.create_plateau(width, height, env.rovers)
+        plateau.create_rover(*rover)
+    plateau.create_plateau(width, height, plateau.rovers)
 
     # Process all the moves and return the final state
-    print env.result(width, height)
-    return env.result(width, height)
+    print plateau.result(width, height)
+    return plateau.result(width, height)
 
 
 if __name__ == '__main__':
