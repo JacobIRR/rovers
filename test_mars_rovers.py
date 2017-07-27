@@ -6,24 +6,10 @@ from mars_rovers import *
 
 class MarsRoverTestModule(unittest.TestCase):
     """
-    We want to test each core function's ability to:
+    We want to test each core function's ability to either:
         1. return a value
         2. raise an error
         3. set an attribute
-
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ** ALSO: What if you create a rover OUTSIDE the dims of the plateau!?!?!?!??!
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
-    ****************************************************************************
     """
 
     def setUp(self):
@@ -40,15 +26,19 @@ class MarsRoverTestModule(unittest.TestCase):
         args2 = ['0 2 WW', 'RMLRMRLM']  # bad position string
         args3 = ['1 2 N', 'LMK']  # bad moves string
         args4 = ['1 2 E', 'RM', '1 2 W', 'LMML']  # rovers on top of each other
-        args5 = ['1 2 N', 'RM', '1 5 W', 'LM']  # good args
+        args5 = ['101 101 E', 'R']  # rover outside plateau
+        args6 = ['1 2 N', 'RM', '1 5 W', 'LM']  # good args
 
-        expected5 = [(1, 2, 'N', ['R', 'M'], 0), (1, 5, 'W', ['L', 'M'], 0)]
+        self.env.create_plateau(100, 100)
+
+        expected6 = [(1, 2, 'N', ['R', 'M'], 0), (1, 5, 'W', ['L', 'M'], 0)]
 
         self.assertRaises(ValueError, self.env.get_rover_params, args1, 0)
         self.assertRaises(ValueError, self.env.get_rover_params, args2, 0)
         self.assertRaises(ValueError, self.env.get_rover_params, args3, 0)
         self.assertRaises(ValueError, self.env.get_rover_params, args4, 0)
-        self.assertEqual(self.env.get_rover_params(args5, 0), expected5)
+        self.assertRaises(ValueError, self.env.get_rover_params, args5, 0)
+        self.assertEqual(self.env.get_rover_params(args6, 0), expected6)
 
     def test_get_plateau_dims(self):
         """
@@ -116,8 +106,7 @@ class MarsRoverTestModule(unittest.TestCase):
         """
         Just assertIsInstance for a plateau with its new args (w, h, rovers)
         """
-        rover = self.env.create_rover(1, 2, 'N', ['L', 'M'], self_preserve=False)
-        plateau = self.env.create_plateau(10000, 10000, [rover])
+        plateau = self.env.create_plateau(10000, 10000)
         self.assertIsInstance(plateau, PlateauEnvironment)
 
     def test_run_rover_moves_and_result(self):
@@ -128,7 +117,7 @@ class MarsRoverTestModule(unittest.TestCase):
         rovers = [self.env.create_rover(2, 2, 'W', ['M'], self_preserve=True),
                   self.env.create_rover(1, 2, 'S', ['R', 'M'], self_preserve=True),
                   self.env.create_rover(3, 3, 'N', ['M', 'R', 'M'], self_preserve=True)]
-        self.env.create_plateau(10, 10, rovers)
+        self.env.create_plateau(10, 10)
 
         # First rover "almost collides", second rover "almost falls out of bounds"
         D = dict()
@@ -136,7 +125,7 @@ class MarsRoverTestModule(unittest.TestCase):
             D[ndx] = self.env.run_rover_moves(rover)
 
         self.assertEqual(D[0], '2 2 W')  # still in place after near collision
-        self.assertEqual(D[1], '1 2 W')  # still in place, but facing Wset after near out of bounds issue
+        self.assertEqual(D[1], '0 2 W')  # still in place, but facing West after near out of bounds issue
         self.assertEqual(D[2], '4 4 E')  # moved one space up and one space right
 
     def tearDown(self):

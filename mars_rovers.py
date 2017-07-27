@@ -65,8 +65,8 @@ class Rover(object):
             else:
                 raise CollisionError("A rover ran into another rover! MISSION FAILED")
         # Test for out of bounds error
-        elif any([test_position[0] > width, test_position[0] < 1,
-                  test_position[1] > height, test_position[1] < 1]):
+        elif any([test_position[0] > width, test_position[0] < 0,
+                  test_position[1] > height, test_position[1] < 0]):
             if self.self_preserve:
                 print "A rover almost rolled off the plateau! Skipping this move..."
                 return None
@@ -94,7 +94,7 @@ class PlateauEnvironment(object):
     def get_rover_params(self, rover_args, self_preserve):
         """
         Parse and validate command line input for rover paramters
-        The X and Y coordinates of the rover are 1-indexed.
+        The X and Y coordinates of the rover are 0-indexed.
         """
         # First, make sure we have a cooresponding moves line for every x,y,facing line
         try:
@@ -114,12 +114,15 @@ class PlateauEnvironment(object):
                     y = int(y)
                     claimed_ground.add((x, y))
                     assert facing.upper() in ('N', 'E', 'W', 'S')
-                    assert x > 0
-                    assert y > 0
+                    assert x >= 0
+                    assert y >= 0
+                    assert x <= self.width
+                    assert y <= self.height
                 except:
-                    raise ValueError('''Cannot construct rover from : %r \n
-                                        Use two positive integers and a Direction
-                                        ''' % i)
+                    msg = 'Cannot construct rover from : %r \n'
+                    msg += 'Use two positive integers between 0 and plateau size '
+                    msg += 'and a Direction (N, S, E, W).'
+                    raise ValueError(msg % i)
                 try:
                     # skip ahead to the next line to get the moves for this rover
                     moves = list(rover_args[ndx+1].replace(' ', '').upper())
@@ -139,20 +142,20 @@ class PlateauEnvironment(object):
     def get_plateau_dims(self, line):
         """
         Verify that we can construct the plateau from command line input
-        The width and height of the plateau are 1-indexed.
+        The width and height of the plateau must be at least 1 X 1
         """
         try:
             dims = [int(i) for i in filter(None, line.strip().split(' '))]
             if len(dims) == 2:
                 width, height = dims
-                assert (width + height) > 2
+                assert (width + height) > 1
                 return width, height
             else:
-                raise ValueError('''Bad input for plateau dimensions: %r.
-                                    Use two positive integers''' % line)
+                raise Exception
         except:
-                raise ValueError('''Bad input for plateau dimensions: %r.
-                                    Use two positive integers''' % line)
+            msg = "Bad input for plateau dimensions: %r."
+            msg += "Use two positive integers"
+            raise ValueError(msg % line)
 
     def create_rover(self, x, y, facing, moves, self_preserve=False):
         """
@@ -164,12 +167,12 @@ class PlateauEnvironment(object):
         # return for use with unit tests
         return rover
 
-    def create_plateau(self, width, height, rovers):
+    def create_plateau(self, width, height):
         """
         Here we assign the attributes for this plateau, having validated them
           as well as the rover parameters.
         """
-        self.width, self.height, self.rovers = width, height, rovers
+        self.width, self.height = width, height
         # return for use with unit tests
         return self
 
@@ -201,6 +204,7 @@ class PlateauEnvironment(object):
         Run all rover moves
         Return a new line for each rover's x/y/facing attributes
         """
+        
         final_state = '\n'.join([self.run_rover_moves(r) for r in self.rovers])
         return final_state
 
@@ -271,20 +275,21 @@ def set_up_environment():
     # start up the factory/environment
     plateau = PlateauEnvironment()
 
-    # Get plateau dimensions from the first line
+    # Get plateau dimensions from the first line and create plateau
     width, height = plateau.get_plateau_dims(lines[0])
+    plateau.create_plateau(width, height)
 
-    # Get args for rovers from the remaining lines
+    # Get args for rovers from the remaining lines and create rovers
     rover_params = plateau.get_rover_params(lines[1:], self_preserve)
-
-    # After validation steps, create the rovers and plateau
     for rover in rover_params:
         plateau.create_rover(*rover)
-    plateau.create_plateau(width, height, plateau.rovers)
 
     # Process all the moves and return the final state
-    print plateau.result(width, height)
-    return plateau.result(width, height)
+    result = plateau.result(width, height)
+    print result
+
+    # In case this gets consumed by an external service/test
+    return result
 
 
 if __name__ == '__main__':
