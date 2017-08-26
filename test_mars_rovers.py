@@ -128,6 +128,11 @@ class MarsRoverTestModule(unittest.TestCase):
         self.assertEqual(D[1], '0 2 W')  # still in place, but facing West after near out of bounds issue
         self.assertEqual(D[2], '4 4 E')  # moved one space up and one space right
 
+    def test_cross_own_path(self):
+        self.env.create_plateau(10000, 10000)
+        rover = self.env.create_rover(1, 1, 'N', ['M', 'M', 'L', 'M', 'L', 'M', 'L', 'M', 'M'], self_preserve=True)
+        self.assertRaises(CrossedOwnPathException, self.env.run_rover_moves, rover)
+
     def tearDown(self):
         """
         This gets exectued after each test case to provide a fresh instance in setUp

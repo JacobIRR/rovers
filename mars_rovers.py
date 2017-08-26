@@ -13,6 +13,11 @@ class OutOfBoundsError(Exception):
     pass
 
 
+class CrossedOwnPathException(Exception):
+    "Raise when we cross our own path"
+    pass
+
+
 class Rover(object):
     """
     One of potentially many rovers on the plateau that can move and turn
@@ -27,6 +32,7 @@ class Rover(object):
         self.clockwise = {'N': 'E', 'E': 'S', 'S': 'W', 'W': 'N'}
         self.counter_clockwise = {'N': 'W', 'W': 'S', 'S': 'E', 'E': 'N'}
         self.movement_map = {'N': [0, 1], 'E': [1, 0], 'W': [-1, 0], 'S': [0, -1]}
+        self.past_moves = set()
 
     def __str__(self):
         """
@@ -72,9 +78,15 @@ class Rover(object):
                 return None
             else:
                 raise OutOfBoundsError("A rover drove off the edge of the plateau! MISSION FAILED")
+
+        # Throw exception if we cross our own path
+        if test_position in self.past_moves:
+            raise CrossedOwnPathException
+
         # Advance forward if both tests passed
         else:
             self.x, self.y = test_position
+            self.past_moves.add(test_position)
         # return for use with unit tests
         return self.x, self.y
 
